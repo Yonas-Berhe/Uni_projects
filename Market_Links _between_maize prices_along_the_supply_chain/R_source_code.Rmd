@@ -1,0 +1,678 @@
+---
+title: "Market Links Between Maize Prices Along The Supply Chain"
+author: "Yonas Menghis Berhe"
+date: "22 June 2020"
+output:
+  pdf_document:
+    number_sections: yes
+    toc: yes
+  html_document:
+    df_print: paged
+    toc: yes
+header-includes:
+  - \usepackage{smartdiagram}
+  - \usepackage{xcolor}
+  - \usepackage{enumerate}
+  - \usepackage{graphicx}
+  - \usepackage{lipsum}
+  - \usepackage{dcolumn}
+  - \usepackage{natbib}
+  
+link-citations: yes
+bibliography: bibfile.bib
+abstract: This paper analyzes the relationship between whole sale and retail maizeprices from of the Dominican Republic(DR). Investigations of  price transmission between whole sale and retail prices  in DR domestic maize markets using monthly price data. Cointegration and error correction models were employed to analyze the degree of price transmission as well as the speed and direction of adjustment of prices. Results reveal interesting insights.
+keywords: Time Series; Commodity; Maize; Dominican Republic; Cointegration; Multivariate Time Series Analysis; Vector error correction mode 
+---
+
+
+
+```{r setup, include=FALSE}
+#knitr::opts_chunk$set(echo = TRUE)
+
+knitr::opts_chunk$set(echo = TRUE, fig.pos= "h")
+
+rm(list = ls()) #clear environment
+
+#All the following packages are assumed to be installed
+library(rmsfuns)   #to load all necessary packages
+load_pkg(c( "stats", "urca","tseries","zoo", "PerformanceAnalytics","vars", "timeSeries", "tidyverse", "forecast", "tsDyn"))
+
+myWD <- c("~/Desktop/Uni classes/Summer 2020/Blockveranstaltung_Data_Analysis_with_R_in_Agricultural_Economics/Project/Final/Yonas_Data Analysis with R ")
+setwd(myWD)
+
+```
+
+\pagebreak
+# Introduction
+
+Maize is one of the most important cereal crops of the world and contributes to food security in most of the developing countries. Its demand in animal and poultry feed industry and industrial uses like starch industry is increasing year after year [@Reedy]. Maize prices, like the prices of everything else, depends on supply and demand. Increased demand and lower supply increases prices, and vice versa. Because the supply-demand equilibrium for any commodity continually changes, so does its price. However with an integrated market means that maize prices are also affected by supply and demand shocks in the whole sale and retail markets. This is knowns as Price transmission. Price transmission refers to the effect of prices in one market on prices in another market. It is generally measured in terms of the transmission elasticity, defined as the percentage change in the price in one market given a one percent change in the price in, another market [@Minot].
+
+The effect of prices transmission becomes imperative since changes in economic condition in these markets determine the production and marketing decision of the maize commodity stakeholders and its overall ramifications along the entire supply chain. 
+
+The main objective of this paper is to evaluate the short and long-run relationships as well as causality between  the whole sale and retail maize prices by assessing the relationship using 5 year monthly data form January 2006 to April 2020. The general trends of the prices and insights on the type of price transmission. This will be carried out by exploring the existence of common spurious regression as well as  understanding the speed, magnitude and direction of the co-integration of these prices overtime.
+
+Understanding the linkage between the whole sale and retail maize prices is imperative for proper policy implementation in order to reduce the negative impact of price ﬂuctuations and food security. Since maize is considered to one of the most important staple foods, limited information about the general behavior of this commodity can disrupt market dynamics and  have a direct impact on welfare of the poor and vulnerable households in the developing nation [@Darekar_Ashwini_Reddy_Amarender]. 
+
+The remainder of this paper is organized as follows: 
+
+*	Section 2 provides sources of data and descriptive statistics. 
+*	Section 3 will explore long-run relationship of prices 
+*	Section 3 presents the theoretical framework and methodology 
+*	Section 4 present empirical results and discussion 
+*	Section 5 the last section is conclusions and recommendations 
+
+\newpage
+
+
+
+
+\pagebreak
+
+
+# Data and Descriptive Statistics
+
+
+```{r data_load, warning=F, error=F, message=F, results='asis', echo = F}
+
+library(frontier)
+library(stargazer)
+library(rmsfuns)
+
+#loading the dataset
+
+maize <- read_csv("DR_WS_RT_prices.csv",  col_names = c("Date-Monthly","Wholesale_Prices","Retail_Prices"), 
+                          col_types = cols("Date-Monthly" = col_date(format = "%b-%y"),   "Wholesale_Prices" = col_number(), 
+                                           "Retail_Prices" = col_number()),  skip = 2)
+
+maize <- ts(maize[,2:3], start = c(2006,1,01), frequency = 12)
+
+
+```
+
+
+Understanding the structure and characteristics of the data would give us a glimpse of the relationship of the maize prices and for devising the most appropriate model for estimation.
+
+Monthly wholesale and retail maize market prices were used, the DR data was downloaded from the FAO database at the Global Information and Early Warning System (GIEWS FPMA Tool monitoring and analysis of food prices) website. We used monthly time series data of prices of four commodities from the period January 2006 to April 2020. Prices are in a form USD/kg units from the city of Santo Domingo. 
+
+We have `r ncol(maize )` of total observation of `r nrow(maize)` each  with mean values of (0.46) and (0.63) for retail and whole sale prices respectively and other important details are mentioned below in Table 1. Table 1 reveals that the mean values for the whole sale and retail prices within the period under study showed quite slight variation. In addition there big difference in their minimum values compared to their maximum.  
+
+
+
+
+```{r data_sum_stats, echo=FALSE, message=FALSE, warning=FALSE, , error=FALSE, results='asis'}
+
+stargazer(maize[,c(1:2)], 
+          summary = T, 
+          type = "latex", 
+          title = "Descriptive Statistics", 
+          digits = 2, 
+          align = T, 
+          header = FALSE, 
+          column.sep.width = "2pt", 
+          font.size = "normalsize", 
+          style = "qje")
+
+```
+
+\ref{fig:Unit_root} Plots both prices in a graph including their respective autocorrelation function (ACF). The price levels are stable in most of the observed period, however there are surges in prices. The highest spike is around 2008 and 2009 possibly due to the financial crisis and again in 2016 and 2018 but with much lower than the former. 
+
+At glance the process seems to have a mean reverting characteristics and the exponential decay of ACF in both prices signifies a process close to stationarity.
+
+
+
+```{r unit_root, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE, results='asis',fig.align='center', fig.cap = "Unit root Test\\label{fig:Unit_root}", fig.pos = 'h'}
+
+layout(matrix(c(1, 2, 1,3), nrow=2, ncol=2, byrow=F)) 
+par(oma=c(1.0,1.0,0,1.5), mgp=c(1.85,.5,0),mar=c(1.5,2.5,0,1.5) + 0.1, las=1,cex.axis=0.7, tcl = -0.3, 
+    cex=0.45,lab = c(10, 6, 7))
+plot(maize, plot.type="s", col=c("blue", "black"), lwd=.5, xlab="", ylab="Maize prices" )
+polygon(c(time(maize[,1]), rev(time(maize[,1]))), 
+        c(maize[,2], rev(maize[,1])),
+        col = alpha("steelblue", alpha = 0.3),
+        border = NA)
+grid(lty=1, col=gray(0.9),lwd=0.5)
+legend("topleft",c("Wholesale_Prices", "Retail_Prices"), bty="n", lty=1, col=c("blue", "black"),inset=0.05,cex=0.7)
+acf(as.numeric(maize[,1]),lag=24)
+acf(as.numeric(maize[,2]),lag=24)
+
+```
+
+Most econometric theory is built upon the assumption of stationarity in the data. If this assumption holds, we can conveniently estimate the relationship between the whole sale and retail prices with ordinary least squares regression. But if it is non-stationarity then one or more variables generally lead to spurious regression. Non-stationarity means presence of unit roots. In this case the next step would be testing for a unit root.
+
+In testing for the presence of unit roots, several methodological options are available. Prominent among them are the (augmented) Dickey- Fuller (ADF) tests, Phillips-Perron tests, and KPSS tests. Here only ADF and KPSS were used. 
+
+The stationary check of time series data was performed, which revealed that the maize prices were non-stationary. The non-stationary time series data were made stationary by first order differencing. After that, the unit root test was performed again on the difference data and the data  is now stationary. 
+
+In the ADF and KPSS tables below the firs rows are the unit test results with the original data and the second row are the test results after the data have been differenced. The decisions criteria for the ADF is to accepted the alternative which is stationarity, if the “tau1” test static is less than the critical values in each significant level.  In our case, the ADF test static for the whole sale and retail prices shows that both first rows are greater than the levels of significance but the second rows are less than the critical level of significance. This indicates that the differenced data is stationary. This is also visually confirmed in figure \ref{fig:residual_diff_plt}.
+
+
+
+```{r ADF_WS_RT, echo=FALSE, message=FALSE, warning=FALSE,  error=FALSE, results='asis'}
+
+# Unit root Whole sale Prices adf
+
+adf.price.a <- ur.df(maize[,1], type = "none",  selectlags = "AIC") # levels
+d1.adf.price.a <- ur.df(diff(maize[,1]),type = "none",  selectlags = "AIC") # first diference
+adf.a<-rbind(cbind(adf.price.a@teststat,adf.price.a@cval),cbind(d1.adf.price.a@teststat,d1.adf.price.a@cval)) # adf test with and with out differencing
+#adf.a
+
+# Unit root Retail Prices adf
+
+adf.price.s <- ur.df(maize[,2], type = "none",  selectlags = "AIC") # levels
+d1.adf.price.s <- ur.df(diff(maize[,2]),type = "none",  selectlags = "AIC")# first diference
+adf.s<-rbind(cbind(adf.price.s@teststat,adf.price.s@cval),cbind(d1.adf.price.s@teststat,d1.adf.price.s@cval)) # adf test with and with out differencing
+#adf.s
+
+
+```
+
+
+```{r adf_final_tables, echo=FALSE, results='asis',message=FALSE, warning=FALSE, , error=FALSE}
+library(texreg)
+library(knitr)
+library(xtable)
+library(kableExtra)
+
+WSADF <- kable(adf.a, format = "latex", booktabs = TRUE)
+RTADF <- kable(adf.s, format = "latex", booktabs = TRUE)
+
+cat(c("\\begin{table}[!htb]
+    \\begin{minipage}{.5\\linewidth}
+      \\caption{ADF Whole Sale}
+      \\centering",
+        WSADF,
+    "\\end{minipage}%
+    \\begin{minipage}{.5\\linewidth}
+      \\centering
+        \\caption{ADF Retail}",
+        RTADF,
+    "\\end{minipage} 
+\\end{table}"
+))  
+```
+
+
+In KPSS test the row structure  is similar to the ADF but the decision criterial is to reject the null hypothesis which is stationary if the test static is greater than critical values. From the table we can see that the first rows are non stationary and the difference second row results are indeed stationary. As we can see both of these tests conclude that whole sale and retail maize prices are integrated order of one I(1).
+
+
+```{r KPSS_WS_RT, echo=FALSE, message=FALSE, warning=FALSE, , error=FALSE, results='asis'}
+
+# Unit root Whole sale Prices KPSS
+
+kpss.price.a <- ur.kpss(maize[,1], type = "mu")
+d1.kpss.price.a <- ur.kpss(diff(maize[,1]), type = "mu")
+kpss.a<-rbind(cbind(kpss.price.a@teststat,kpss.price.a@cval),cbind(d1.kpss.price.a@teststat,d1.kpss.price.a@cval)) # kpss test with and with out differencing
+#kpss.a
+
+# Unit root Retail Prices KPSS
+
+kpss.price.s <- ur.kpss(maize[,2], type = "mu") # levels
+d1.kpss.price.s <- ur.kpss(diff(maize[,2]), type = "mu") # first diference
+kpss.s<-rbind(cbind(kpss.price.s@teststat,kpss.price.s@cval),cbind(d1.kpss.price.s@teststat,d1.kpss.price.s@cval)) # kpss test with and with out differencing
+#kpss.s
+
+
+```
+
+
+```{r kpss_final, echo=FALSE, results='asis',message=FALSE, warning=FALSE, , error=FALSE}
+
+library(knitr)
+library(xtable)
+library(kableExtra)
+
+WSkpss <- kable(kpss.a, format = "latex", booktabs = TRUE)  %>% kable_styling(latex_options = c("striped"), font_size=6)
+RTkpss <- kable(kpss.s, format = "latex", booktabs = TRUE) %>%  kable_styling(latex_options = c("striped"), font_size=6)
+
+cat(c("\\begin{table}[!htb]
+    \\begin{minipage}{.5\\linewidth}
+      \\caption{KPSS Whole Sale}
+      \\centering",
+        WSkpss,
+    "\\end{minipage}%
+    \\begin{minipage}{.5\\linewidth}
+      \\centering
+        \\caption{KPSS Retail}",
+        RTkpss,
+    "\\end{minipage} 
+\\end{table}"
+))  
+```
+
+Our preliminary time series graphs give a hint, based on visual examination, that the prices are highly correlated in the movement and oscillation over time. Moreover, the general observation is that both  prices tend to move closely together, thus raising the suspicion of possible cointegration. The general cointegration procedures presume that deviations from equilibrium conditions for two or more economic variables, which individually are not stationary, should be stationary in the long run. The intuition is that economic forces should not allow long-run deviations to persist from equilibrium conditions, although significant short-run deviations may be observed.
+
+
+
+
+
+
+
+
+\pagebreak
+# Long-run Relationship of Prices 
+
+
+```{r, coint_EG, echo=FALSE, results='asis',message=FALSE, warning=FALSE, , error=FALSE}
+
+### Cointegration test 
+
+## Engel-Granger
+### Long run relationships
+library(dynlm)
+
+LRE <- dynlm(log(Wholesale_Prices) ~ log(Retail_Prices), data=maize) # dynlm is a package for linear dynamic models 
+#summary(LRE)
+#coeftest(LRE)
+u_hat<-residuals(LRE)
+
+### stationary-test for residuals 
+adf.u_hat <- ur.df(u_hat, type = "none",  selectlags = "AIC")
+adf.u<-cbind(adf.u_hat@teststat,adf.u_hat@cval)
+#adf.u
+
+kpss.u_hat <- ur.kpss(u_hat, type = "mu")
+kpss.u<-cbind(kpss.u_hat@teststat,kpss.u_hat@cval)
+#kpss.u
+
+
+```
+
+
+Now that we know there is a possible long-run relationship among the prices, we can test for cointegration using the method proposed by [@Engle_Granger_1987]. Here we regress a log whole sale prices on log retail prices, each of the series by itself is  non-stationary and requires a transformation through first differencing to achieve stationarity. In this case, a linear combination of the two series should produces a residual series , which may be stationary.
+
+```{r LRE2, warning=FALSE,, error=FALSE, message=FALSE, results='asis',echo=FALSE}
+
+# regression output for the Engel-Granger Lon run relationship
+
+stargazer(LRE,
+           model.numbers = T,
+           type = "latex",
+           style = "qje",
+           title = "Engel-Granger Long run relationship",
+           label = "LRE",
+           intercept.bottom = TRUE ,
+           dep.var.labels = "log(Whole sale Prices)",
+           digits = 3,
+           align = TRUE,
+           font.size = "small",
+           float = TRUE,
+           header=FALSE,
+           no.space = FALSE,
+           notes = "Standard Errors in parenthesis")
+
+```
+
+
+ADF and KPSS tests both shows that the residuals are  stationary and confirms the existence  of cointegration in the linear combination of the prices. The cointegrating vector removes the common trend, implying a long-run equilibrium relationship between the prices  [@Verbeek]. 
+
+```{r resi_stat_test_table, warning=FALSE, error=FALSE, message=FALSE, results='asis',echo=FALSE}
+
+#knitr::kable(list(adf.u, kpss.u))
+
+
+resiADF <- kable(adf.u, format = "latex", booktabs = TRUE) %>%  kable_styling(latex_options = c("basic"), font_size=7)  # ADF test for residuals table 
+resiKPSS <- kable(kpss.u, format = "latex", booktabs = TRUE) %>%  kable_styling(latex_options = c("basic"), font_size=7) # KPSS test for residuals table 
+cat("\n")
+#cat("\\newpage")
+cat("\\begin{table}[!htb]")
+cat(c("\\begin{minipage}{.5\\linewidth}
+       \\caption{ADF Residuals}
+       \\centering",
+         resiADF,
+     "\\end{minipage}%
+     \\begin{minipage}{.5\\linewidth}
+       \\centering
+         \\caption{KPSS Residuals}",
+         resiKPSS,
+     "\\end{minipage}") )
+cat("\\end{table}")
+
+```
+
+The regression table shows that the retail prices are positive and significant at 1% level of significance. We can conclude the existence of a long run relationship between the whole sale and retail maize prices. Now we can derive the long run relationship equation from the regression  output where WS and RT stand for whole sale and retail prices respectively. The coefficient is the elasticity that measures the percentage change in whole sale price due to a one percentage change in retail prices. 
+
+
+\begin{equation}
+\label{equ:LR1 relation}
+ log P_{WS} = \alpha + \beta log P_{RT} + \epsilon_{ECM}
+\end{equation}
+
+
+\begin{equation}
+\label{equ:LR2 relation}
+ log P_{WS} = -0.285  + 1.123 log P_{RT} +  ECM
+\end{equation}
+
+
+After the unit root tests results confirm the existence of long-run relationship, we can now the for potential number cointegration that my prevail using Johansen’s maximum Eigen-value or trace test [@Johansen_Juselius1990 ] . The null hypothesis that there are at most “r” cointegrating vectors is tested using the trace Eigen value statistics [@Johansen]. The table shows that at least one cointegrating vector is found but the test for at least two integrating vectors seem to be valid for the 10%  and 5%  but gets weaker at the 1% level. Here, both the maximal Eigen value and trace tests are perfectly in agreement concerning the number of cointegrating vectors that attained full rank. The results of cointegration tests are presented in Table 11 & 12. Based on the AIC and SIC criteria, lag 2 found to be optional form the VAR information criteria table.  
+
+
+
+```{r info_Crite, echo=FALSE, results='asis',message=FALSE, warning=FALSE, , error=FALSE}
+
+library(pander)
+
+infocrit <- VARselect(log(maize), lag.max = 5, type = "const") # informaion criteria  for setting the number of lags
+
+#pander(infocrit$selection, caption = "information criteria lags")
+
+
+kable(infocrit, format = "latex", booktabs = TRUE, caption = "VAR lag selection")
+
+```
+
+
+```{r john_coint_test, warning=FALSE,error=FALSE, message=FALSE, results='asis',echo=FALSE}
+
+## Johansen cointegration test
+## Johansen-test 
+infocrit <- VARselect(log(maize), lag.max = 5, type = "const")
+#pander(infocrit$selection, style = 'grid', caption = "Lag values")
+
+maize.co <- ca.jo(log(maize),ecdet="const",type="trace",K=3,spec="transitory") # test of cointegration with Trace method
+#summary(maize.co)
+test.co<- cbind(maize.co@teststat, maize.co@cval)
+#test.co
+
+maize.co.e <- ca.jo(log(maize),ecdet="const",type="eigen",K=3,spec="transitory") # test of cointegration with Eigen values method method
+test.co.e<- cbind(maize.co.e@teststat, maize.co.e@cval)
+
+# library(knitr)
+# library(xtable)
+# library(kableExtra)
+
+JHTR <- kable(test.co, format = "latex", booktabs = TRUE) 
+JHEG <- kable(test.co.e, format = "latex", booktabs = TRUE)
+
+cat(c("\\begin{table}[!htb]
+    \\begin{minipage}{.5\\linewidth}
+      \\caption{Trace method}
+      \\centering",
+        JHTR,
+    "\\end{minipage}%
+    \\begin{minipage}{.5\\linewidth}
+      \\centering
+        \\caption{Eigen value method}",
+        JHEG,
+    "\\end{minipage} 
+\\end{table}"
+)) 
+
+
+```
+\pagebreak
+
+
+
+\newpage
+# Theoretical Framework and Methodology
+
+Since above test results prove that there is cointegration,  then based on the Engle–Granger approach which states that if two variables are cointegrated, then both must be linked by an ECM [@Engle_Granger_1987]. This way we can specify and estimate a Vector Error Correction Model for the whole sale and retail maize prices in order to explore price dynamics that may exist among these markets, under the cointegrating constraints and also derive the impulse response functions and then adjust parameters from the estimates [@Engle_Yoo]. These error correction models are specified as such:
+
+
+\begin{equation}
+\label{equ:LR3}
+ ECM = log{WS} - \beta_0 - \beta_{1}log{RT} 
+\end{equation}
+
+
+\begin{equation}
+\label{equ:ECM wholesale}
+ \delta log{WS} = \gamma_{1,0} + \gamma_{1,1} (\delta log{RT})_{t-1} + \gamma_{1,2} (\delta log{RT})_{t-2} + 
+\gamma_{1,3} (\delta log{WS})_{t-1} + \gamma_{1,4} (\delta log{WS})_{t-2} + \alpha ECM{t1} + v_t
+\end{equation}
+
+
+\begin{equation}
+\label{equ:ECM Retail}
+ \delta log{RT} = \gamma_{2,0} + \gamma_{2,1} (\delta log{RT})_{t-1} + \gamma_{2,2} (\delta log{RT})_{t-2} + 
+\gamma_{2,3} (\delta log{WS})_{t-1} + \gamma_{2,4} (\delta log{WS})_{t-2} + \alpha ECM{t2} + v_t
+\end{equation}
+
+
+Equations 4 and 5 investigate the dynamic relationships among the two prices with two lags. We have first-difference operator (delta) for whole sale and retail prices as dependent variable and alpha is the error correction term that measures the speed of adjustment at which short-run deviations from the long-run equilibrium are corrected in the next period and the gammas measure the short run elasticity of transmission, and the betas from the equation 2 now included in the ECM measures the long run elasticity of transmission. this is the error correction term derived from the cointegrating equation and represents the long- run equilibrium relationship [@Engle_Granger_1987] and finally “vt” is a residual or random component that follows a white noise process . 
+
+If our tests show non-cointegration, then we can use a vector autoregressions (VAR) model to generate the impulse response functions [@Reedy]. The impulse response function traces the effect and persistence of one price shock to the other price, and this gives us an indication of how fast information transmits across the markets. Thus, we can measure how rapidly information is transmitted across different markets. The adjustment parameter coefficients also tell us the speed with which short run deviations return to the long-run equilibrium. 
+
+
+
+
+
+
+
+
+
+
+\newpage
+
+# Empirical Results and Discussions
+
+## Error correction model  
+
+The primary function of error correction models is to model stationary relationships among multivariate time series that have unit roots. We established from the Johansen’s trace and eigenvalue tests that there were at least two cointegrating relationships among the whole sale and retail maize prices. Hence, a VECM model for the cointegrated price series is more appropriate model.
+
+We estimated the model presented in equations (4 & 5)  in order to explore causality and dynamic relationship between the whole sale prices and retail prices. The combined  regression results are as follows 
+
+
+```{r ECM, warning=FALSE,error=FALSE, message=FALSE, results='asis',echo=FALSE}
+
+# Engle-Granger Vecor Error Correction model 
+### Two regression equations (OLS) - Engel-Granger
+
+ECM_1 <- dynlm(d(log(Wholesale_Prices)) ~ L(u_hat)+L(d(log(Retail_Prices)), 1:2) + L(d(log(Wholesale_Prices)), 1:2), data=maize)
+ECM_2 <- dynlm(d(log(Retail_Prices)) ~ L(u_hat) + L(d(log(Wholesale_Prices)), 1:2) + L(d(log(Retail_Prices)), 1:2), data=maize)
+
+#coeftest(ECM_1)
+#coeftest(ECM_2)
+
+ECM_1_2 = cbind(ECM_1[["coefficients"]],ECM_2[["coefficients"]])
+#ECM_1_2
+
+#knitr::kable(ECM_1_2, format = "latex", col.names = c("WholeSale","Retail"),caption = "Engle-Granger VECM")
+
+#pander(ECM_1, caption = "information criteria lags")
+
+
+stargazer(ECM_1, ECM_2, title="Engle-Granger VECM", 
+          align=TRUE, dep.var.labels=c("Diff log WholeSale","Diff log Retail"), 
+          covariate.labels=c("ECT","Log Retail Prices t-1", 
+                             "Log Retail Prices t-2","Log WholeSale t-1","Log WholeSale t-2","Constant"), 
+          omit.stat=c("LL","ser"), no.space=TRUE)
+
+```
+
+
+The results in Table 13 shows the ECM for the whole sale and retail prices. As we can see the one month lagged log retail  and whole sale prices are statistically significant as determinants of the log difference the whole sale and retail maize prices respectively. This implies that shocks in then one of the markets will positively or negatively affect the other markets within lags of one to two months. The transmission rates are for the retail prices are positive and significant, suggesting that retail market maize price in the short run induced a 40% price response within one month on wholes sale prices likewise for the whole sale prices it 17.9% within one month and 11.1% within two months responses on retail prices.
+
+This implies that price movements and shocks affects in one markets have high impact on the other and this reveals that revealed a high rate of transmission and influences of the retail prices on wholes sale prices than the other way around. this may be related to the relative volatility in the retail markets that dictates the price trend than the whole sale market.
+
+As mentioned earlier the error correction term (ECT) measures the speed of adjustment to the equilibrium level. In this ECM, we have two error correction coefficients as we found at least more than two cointegrating vectors. ECT for the whole sale price is statistically significant and with a negative sign. The figure -0.114 means that when the first cointegrating equation is out of equilibrium due to a 1% shock, the price in whole sale prices falls with a speed of 0.11% every month in order to restore equilibrium once again. Thus, the wholes sale market is significantly adjusts to deviations in the first error correction term.
+
+A 10 percent change in prices of these markets in the long run will induce an adjustment of 11.4% in whole sale prices per month. The negative sign with a magnitude higher than ECT for retail prices which have a positive sign, helps to correct errors quickly toward a value consistent in the long‐run price relationship.  The 11.4% rate of correction implies that shocks induced in these markets will take 8 to 9 months to be corrected toward their long-run market equilibrium 
+
+The ECT for the retail prices is positive, this implies that the process it not converging in the long run. there may be are some instabilities. This inconvenience may have been created by some misspecification in the model, for example the cointegrating for at least two vectors were weak at the 1% level, could be a potion cause Or maybe there are some data issues that we are not aware about. However since the coefficient are insignificant, its effect on the long run equilibrium adjustment is limited.
+
+## Model Evaluation 
+
+Furthermore adequacy test are carried out to check for stability of the VECM model by conducting, normality, auto correlation and heteroskedasticity  test. The model is found to be heteroskedastic since the reject the null hypothesis of homoscedasticity. This is due to small size resulting in inefficiency, although estimates will remain asymptotically unbiased [@Tarima].
+
+
+
+```{r Stability_test, warning=FALSE,error=FALSE, message=FALSE, results='asis',echo=FALSE}
+
+
+### VEC-test 
+
+vec.var<-vec2var(maize.co,r=1) # model transformation 
+
+
+arc <- arch.test(vec.var, lags.multi = 1)$arch.mul # test for heteroskedasticity 
+nr <- normality.test(vec.var)$jb.mul$JB # test for normality 
+sr <- serial.test(vec.var)$serial # test for autocorrelation 
+
+pander(arc, caption = "Test for Heteroskedasticity")
+pander(nr, caption = "Test for Normality ")
+pander(sr, caption = "Test for Autocorrelation")
+
+```
+
+
+\pagebreak
+
+Normality test indicates that the residuals are not normal distributed. since the Jarque-Bera test applied to the residuals which compares the distribution of the data with the structure of a normally distributed data, this again creates a problem because we don't have a very large samples and as a result the test indicated non normality [@Andrews]. But when the residuals  are plotted in a histogram we can see a normal distribution like structure. Finally the model has been found to have no autocorrelation according Portmanteau Test indicating stationarity of the residuals. These model evaluation results conclude that the stability and adequacy of the VECM estimates.
+
+
+
+
+```{r resid_dis_fig, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE, results='asis',fig.align='center', fig.cap = "Residual Normality Test\\label{fig:residual_norm_test}", fig.pos = 'h'}
+
+# hist(vec.var[["resid"]])
+# 
+# plot(density(vec.var[["resid"]]))
+
+Residuals <- ts(vec.var[["resid"]])
+hist(Residuals, prob=TRUE, col="grey")# prob=TRUE for probabilities not counts
+#lines(density(Residuals), col="blue", lwd=2)
+lines(density(Residuals, adjust=2), lty="dotted", col="darkgreen", lwd=4) 
+
+
+
+```
+
+\pagebreak
+
+
+## Forecasting and Persistence  
+
+Forecast outlooks for 24 periods (2 years) shows that the prices can be forecasted to a certain extent with some degree of deviation of 95% confidence interval possibilities. indicating that prices will remain stable into the future but  this is highly unlikely since we are dealing with prices and  rapid change in economic condition. However, it revealed an important feature. This future deviations is more wider for the wholes sale prices than retail prices which shows a more narrower variance from the forecast trends. therefore retail prices forecast are more likely to lead to a less uncertain and predictable outcomes to some extent in future periods ahead.
+
+
+
+```{r Forcasting_period, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE, results='asis',fig.align='center', fig.cap = "Forcasting  \\label{fig:forcast_fig}", fig.pos = 'h'}
+
+### VEC-forecast 
+predat<- predict(vec.var,n.ahead = 24)
+par(mfcol=c(1,1))
+par(oma=c(.5,1.0,0.5,1.5), mar=c(1.2,1.5,0.5,1) + 0.1, cex.main = 0.5, cex.axis=0.3, tcl = -0.2, mgp=c(0.5,.3,0),las=1,cex.lab = 0.4)
+fanchart(predat)
+
+```
+
+
+We further examine the dynamics between the whole sale and  retail price relationships with the impulse response functions. 24-period (about 2 years) IRFs for the estimated error correction models are presented in figure \ref{fig:IRF_WS} and figure \ref{fig:IRF_RT}.The impulse here is a one standard deviation positive shock from the whole sale prices and the response relates to the retail prices affected by the shock and vice versa. 
+
+
+
+The IRFs indicates that both transitory and permanent effects on the prices. A transitory shock is one whose effect dies out immediately or shortly after one or few periods, whereas a permanent shock has effects that persist for a longer time horizon. 
+
+We find in figure \ref{fig:IRF_WS}, that a transitory effect in the short term in the retail maize prices, which has an initial rise of positive response to a given (one-standard-deviation) positive shock from the whole sale prices. After 5 months, the response from these local markets stabilizes almost in accordance with the long run mean. 
+
+
+However the response of the whole sale in figure \ref{fig:IRF_RT} is more severe. The initial response to the shock from the retail prices was positive but then immediately down spiraled negatively after the 5thmonth period and stabilizes at around -5% below the long run mean and persists at that level. Thus, according to our estimated model, in the long-run shocks from the retail prices leads to permanent decrease on average whole sale prices. Hence, these asymmetric responses in prices leads to a conclude the existence of market inefficiency. 
+
+
+This can be further confirmed by looking at the Forces variance decomposition of both prices in figure \ref{fig:FVD_RT_WS}. As we can see from fig 4 the whole sale prices are determined mostly by itself until the 11th  period but after that the effect of retail prices significantly increases that match the influence of effect of the whole sale by the end of the 24 period. but this is not so the other way around. The retail prices are to a large extent determined by itself and whole sale prices have little effect on it dynamic. From this results its clear to see that retail prices play a huge role in determine not only its own price innovations but also have significant effect on the dynamics the wholesale maize prices in the long run.
+
+
+
+
+
+
+# Conclusion and Policy recommendations
+## Summary 
+
+
+
+This study was designed to investigate the short- and long-term price dynamics between whole sale and retail maize prices of the Dominican Republic and discover the relationships among the prices. A 5 year monthly data form January 2006 to April 2020 was collected to achieve this goal. Multivariate time series techniques were used to explore the dynamic relationships that existed among the prices. 
+
+Then a vector error correction model for the prices is fitted. The results indicated that retail and whole sale prices shared long run relationships, also the short run elasticity of transmission coefficients were significant. especially for the first period lags.  The error correction term for the wholes sale prices was statistically significant but not for the retail price and the speed of adjustment is slow.
+
+
+## Conclusion 
+
+Based on finding I conclude that 
+
+1.	Price trends within the period under study, whole sale and retail maize prices in Dominican Republics fluctuated over the years but share an overall similar trend not far from their average values. Unit root tests shows price series were non-stationary but were all integrated of order of one, thus providing scope for possible cointegration. The Johansen’s cointegration tests predicted at least two cointegration relationship but with conservative results for the second cointegration vector.
+
+2.	In the short-term the one month lagged retail maize prices has a significant effect on  wholes sale prices. Similarly wholes sale have significant impact on retells prices on bother lagged periods but effect is much stronger in the first lag.  However, in the long-run, both prices are cointegrated, implying that price movement share a long-run equilibrium relationship. The error correction term for one of the cointegrated vector was statistically significant and exhibit a slow speed of adjustment of around 10% to 14%.
+
+3.	Both prices share short- and long-run relationships with each other. However, In the long run retail prices has significant impact on whole sale prices, leading to negative price stability. but the effect is not similar the other way around. this implies asymmetric responses in prices and market inefficiency. 
+
+4.	Forecast trends show stability with the current trend but less potential variance for retail prices than whole sale. consequently, in the long run retail prices determines a significant portion of the price dynamics and innovation of the whole sale market prices.
+
+
+
+
+## Policy Recommendation and Implications
+
+Commodity prices as any other economic good are determined by supply and demand and in turn supply and demand are influenced and shaped by market accessibility and flow of information [@ISAAC].
+
+In our study we saw that retail prices drive the direction of the prices for the most and whole sale price correct the error to maintain the long run relationship. This is logical since retail prices have direct impact and visibility with consumers of the commodity in which the prices could be dictated in the market but whole sale prices may only be dictated by the transaction of big traders. Which explains why we have slow adjustment with the long run and insignificant second cointegration vector [@Guttormsen]. 
+
+Good market access  allows for easy flow of the commodity between markets and reduce the negative effect of price shocks. Similarly, good flows of information remove price distortions and allows arbitrage to maintain prices not exposed to exploitations [@Zakari]. I recommend policy reforms to ensure proper the establishment of adequate price information systems that are mandated to transmit commodity prices between the markets and sufficient development of good infrastructure that will improved market efficiency [@Reddy].
+
+Our analysis revealed that retail prices plays a significant role in affecting the price dynamics, giving  this special emphasis to retail prices, it would be interesting to know, “What are the main factors behind this influence and how producers and retailers respond to this price asymmetry as well as the determinants of their future price expectations.” I find this future direction of the research worth investigating.
+
+
+
+
+
+
+
+\newpage 
+
+# Summary of Figures and Tables
+
+\listoftables
+
+\listoffigures
+
+
+
+
+\newpage 
+
+```{r FVD, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE, results='asis',fig.align='center', fig.cap = "Forcaste Variance Decompostion \\label{fig:FVD_RT_WS}", fig.pos = 'h'}
+
+VAR_fevd <- fevd(vec.var,n.ahead = 24)
+plot(VAR_fevd)
+
+
+```
+
+\newpage 
+```{r resi_plot_diff, echo=FALSE, include=TRUE, message=FALSE, warning=FALSE,  error=FALSE, results='asis', fig.cap = "Residual Plots Differenced\\label{fig:residual_diff_plt}", fig.align='center', fig.pos = 'h'}
+
+plot(d1.adf.price.a) # first diference
+
+
+```
+
+\newpage 
+
+```{r IRFws, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE, results='asis',fig.align='center', fig.cap = "Response of Retail prices to Whole sale prices Impulses \\label{fig:IRF_WS}", fig.pos = 'h'}
+
+### VEC-IRF
+vec.irf1<-irf(vec.var, boot=T, n.ahead = 24, impulse = "Wholesale_Prices", response = "Retail_Prices")
+plot(vec.irf1)
+
+
+```
+
+\newpage 
+
+```{r IRFrt, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE, results='asis',fig.align='center', fig.cap = "Response of Whole sale prices to Retail prices Impulses   \\label{fig:IRF_RT}", fig.pos = 'h'}
+
+vec.irf2<-irf(vec.var, boot=T, n.ahead = 24, impulse = "Retail_Prices", response = "Wholesale_Prices")
+plot(vec.irf2)
+```
+
+
+\newpage 
+
+# References
+
+
+<!-- \bibliographystyle{apalike}
+\bibliography{bibfile.bib}-->
+
